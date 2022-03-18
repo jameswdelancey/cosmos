@@ -1,3 +1,7 @@
+import shutil
+import datetime
+import pathlib
+import re
 import time
 import random
 import subprocess
@@ -153,6 +157,12 @@ Host actions:
         logging.info(version)
 
     @staticmethod
+    def status(text):
+        os.makedirs(os.path.dirname(status_file))
+        with open(status_file, "w") as f:
+            f.write(str(datetime.datetime.now()) + " STATUS " + text + "\n")
+
+    @staticmethod
     def apply_module(module):
         logging.info("applying module %s", module)
         try:
@@ -294,8 +304,7 @@ class Utilities:
                     )
 
     @staticmethod
-    def host_entry():
-        global host  # checkme
+    def host_entry(host):
         with open(inventory_dir + "/hosts/" + host + "/variables") as f:
             _payload = f.read()
         variables = [v for v in _payload.splitlines() if "=" in v]
@@ -305,6 +314,83 @@ class Utilities:
         modules = ["module=%s" % m for m in Utilities.host_modules(host)]
         entries = ["host=%s" % host] + roles + modules + variables
         return entries  # checkme
+
+    @staticmethod
+    def host_remove_module(host, module):
+        modules_file = inventory_dir + "/hosts/" + host + "/modules"
+        with open(modules_file) as f:
+            _payload = f.read()
+        modules = _payload.splitlines()
+        modules = [m for m in modules if m != module]
+        with open(modules_file, "w") as f:
+            f.write("\n".join(modules) + "\n")
+
+    @staticmethod
+    def host_add_module(host, module):
+        assert module in os.listdir(inventory_dir + "/modules"), (
+            "couldn't find module %s" % module
+        )
+        modules_file = inventory_dir + "/hosts/" + host + "/modules"
+        os.makedirs(inventory_dir + "/hosts/" + host)
+        Utilities.host_remove_module(host, module)
+        with open(modules_file, "a") as f:
+            f.write(module + "\n")
+
+    @staticmethod
+    def host_remove_role(host, role):
+        roles_file = inventory_dir + "/hosts/" + host + "/roles"
+        with open(roles_file) as f:
+            _payload = f.read()
+        roles = _payload.splitlines()
+        roles = [m for m in roles if m != role]
+        with open(roles_file, "w") as f:
+            f.write("\n".join(roles) + "\n")
+
+    @staticmethod
+    def host_add_role(host, role):
+        assert role in os.listdir(inventory_dir + "/roles"), (
+            "couldn't find role %s" % role
+        )
+        roles_file = inventory_dir + "/hosts/" + host + "/modules"
+        os.makedirs(inventory_dir + "/hosts/" + host)
+        Utilities.host_remove_role(host, role)
+        with open(roles_file, "a") as f:
+            f.write(role + "\n")
+
+    @staticmethod
+    def check_roles():
+        for role in os.listdir(inventory_dir + "/roles"):
+            assert os.path.exists(inventory_dir + "/roles/" + role + "/modules"), (
+                "no modules file for role `%s`" % role
+            )
+            with open(inventory_dir + "/roles/" + role + "/modules") as f:
+                _payload = f.read()
+            modules = _payload.splitlines()
+            malformed_modules = [m for m in modules if not re.match(valid_name, m)]
+            assert not malformed_modules, (
+                "malformed role modules: %s" % malformed_modules
+            )
+            for module in modules:
+                assert os.path.exists(
+                    inventory_dir + "/modules/" + module
+                ), "role %s module %s does not exist" % (role, module)
+
+    @staticmethod
+    def check_modules():
+        for module in os.listdir(inventory_dir + "/modules"):
+            assert os.path.exists(inventory_dir + "/modules/" + module + "/apply"), (
+                "no apply script for module %s" % module
+            )
+
+    @staticmethod
+    def check_hosts():
+        for host in os.listdir(inventory_dir + "/hosts"):
+            # checkme below is there always the modules folder?
+            assert os.listdir(
+                inventory_dir + "/hosts/" + host + "/modules"
+            ) + os.listdir(inventory_dir + "/hosts/" + host + "/roles"), (
+                "no roles for host %s" % host
+            )
 
 
 def log_level(arg):
@@ -359,6 +445,138 @@ def main(argv):
             inventory_dir = local_inventory
         if not command:
             command = "status"
+
+        if command == "version":
+            logging.info(version())
+        elif command == "apply":
+            Utilities.fetch_inventory()
+            Utilities.identify()
+            # consult pause file
+            assert (
+                not os.path.exists(pause_file) or force
+            ), "bailing for pause lock file; try `cosmos resume`"
+            # set up our lock file
+            assert (
+                not os.path.exists(lock_file) or force
+            ), "mailing for run lock file; try `cosmos recover`"
+            pathlib.Path(lock_file).touch()
+            # apply modules
+            logging.info("running apply")
+            for module in modules:
+                EntryPoints.apply_module(module)
+                EntryPoints.test_module(module)
+            # drop obsolete modules
+            for droppable_module in droppable_modules:
+                EntryPoints.drop_module(droppable_module)
+            os.unlink(lock_file)
+            EntryPoints.status("OK")
+            logging.info("done")
+
+        elif command == "status":
+            status_payload = ""
+            # list out what we would do
+            Utilities.fetch_inventory()
+            Utilities.identify()
+
+            if os.path.exists(status_file):
+                with open(status_file) as f:
+                    status_payload = f.read()
+            logging.info(
+                """\
+using inventory %s
+
+hostname: %s
+roles: %s
+modules: %s
+
+%s
+
+"""
+                % (
+                    inventory_dir,
+                    HOSTNAME,
+                    roles or "<none>",
+                    modules or "<none>",
+                    status_payload or "STATUS UNKNOWN",
+                )
+            )
+            if os.path.exists(lock_file):
+                logging.info("-- run lock is set; clear with `cosmos recover` --")
+            if os.path.exists(pause_file):
+                logging.info("-- pause lock is set; clear with `cosmos resume` --")
+        elif command == "directive":
+            Utilities.fetch_inventory()
+            Utilities.identify()
+
+        elif command == "list-hosts":
+            filters = command_arg
+            Utilities.fetch_inventory()
+            entries = ""
+            hosts = os.listdir(inventory_dir + "/hosts")
+            for host in hosts:
+                host_entry = Utilities.host_entry(host)
+                entries += host + "\t" + host_entry + "\n"
+
+            logging.debug("\n%s", entries)
+            for filter in filters:
+                entries = [e for e in entries if re.match(filter, e)]
+
+            logging.info([e.split()[0] for e in entries.splitlines() if e])
+
+        elif command == "list-modules":
+            Utilities.fetch_inventory()
+            logging.info(os.listdir(inventory_dir + "/modules"))
+
+        elif command == "list-roles":
+            Utilities.fetch_inventory()
+            logging.info(os.listdir(inventory_dir + "/roles"))
+
+        elif command == "check":
+            Utilities.check_modules()
+            Utilities.check_roles()
+            Utilities.check_hosts()
+
+        elif command == "inventory":
+            subcommand = command_arg
+            # subcommand_arg = argv[3]
+            if subcommand == "diff":
+                subprocess.check_output(["git", "-C", inventory_dir, "diff"])
+            elif subcommand == "push":
+                subprocess.check_output(["git", "-C", inventory_dir, "push"])
+        elif command == "host":
+            host = command_arg
+            subcommand = argv[3]
+            subcommand_arg = argv[4]
+            if subcommand == "add":
+                os.makedirs(inventory_dir + "/hosts/" + host)
+                pathlib.Path(inventory_dir + "/hosts/" + host + "/.gitkeep").touch()
+            elif subcommand == "remove":
+                shutil.rmtree(inventory_dir + "/hosts/" + host)
+            elif subcommand == "add-module":
+                Utilities.host_add_module(host, subcommand_arg)
+            elif subcommand == "remove-module":
+                Utilities.host_remove_module(host, subcommand_arg)
+            elif subcommand == "add-role":
+                Utilities.host_add_role(host, subcommand_arg)
+            elif subcommand == "remove-role":
+                Utilities.host_remove_role(host, subcommand_arg)
+            else:
+                for host in argv[2:]:
+                    entry = Utilities.host_entry(host)
+                    logging.info(entry)
+        elif command == "fetch":
+            # get our repo updated
+            Utilities.fetch_inventory()
+        elif command == "recover":
+            # get our repo updated
+            os.unlink(lock_file)
+        elif command == "resume":
+            # get our repo updated
+            os.unlink(pause_file)
+        elif command == "pause":
+            pathlib.Path(pause_file).touch()
+        else:
+            assert False, "unknown command %s" % command
 
     except (KeyboardInterrupt, SystemExit) as e:
         logging.info("exiting due to interruption: %s", repr(e))
