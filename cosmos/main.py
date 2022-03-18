@@ -1,3 +1,4 @@
+import time
 import random
 import subprocess
 import logging
@@ -229,6 +230,81 @@ class Utilities:
         ]
         droppable_modules = [m for m in applied_modules if m not in modules]
 
+    @staticmethod
+    def check_inventory():
+        assert inventory_git_url, "no inventory_git_url configured in %s/config" % lib
+        assert os.path.exists(inventory_dir), (
+            "couldn't fin inventroy at %s" % inventory_dir
+        )
+
+    @staticmethod
+    def execute_directive():
+        _path = inventory_dir + "/directives"
+        now = time.time()
+        if os.path.isdir(_path):
+            # find directives from within the last day which have not been executed
+            inventory_directives = [
+                f
+                for f in os.listdir(_path)
+                if os.stat(_path + "/" + f).st_mtime < now - 86400
+            ]
+            os.makedirs(data_dir + "/executed_directives")
+            for directive in inventory_directives:
+                mtime = os.stat(_path + "/" + directive).st_mtime
+                with open(data_dir + "/executed_directives/" + directive) as f:
+                    _payload = f.read()
+                if mtime not in _payload:
+                    with open(data_dir + "/executed_directives/" + directive) as f:
+                        f.write("%d\n" % mtime)
+                    with open(data_dir + "/directives/" + directive) as f:
+                        _payload = f.read()
+                    exec(_payload)
+
+    @staticmethod
+    def fetch_inventory():
+        if local_inventory:
+            logging.info("using local inventory %s", local_inventory)
+        elif no_fetch:
+            logging.info("not fetching inventory")
+        else:
+            Utilities.check_inventory()
+            logging.info("fetching inventory")
+            if os.path.exists(inventory_dir + "/.git"):
+                completed_process = subprocess.run(
+                    ["git", "-C", inventory_dir, "status", "--porcelain"],
+                    stdout=subprocess.PIPE,
+                )
+                assert (
+                    completed_process.returncode != 0
+                ), "local inventory checkout is dirty; try --no-fetch or reset"
+                subprocess.check_output(
+                    ["git", "-C", inventory_dir, "reset", "--hard"],
+                    stdout=subprocess.PIPE,
+                )
+                subprocess.check_output(
+                    ["git", "-C", inventory_dir, "-fd"], stdout=subprocess.PIPE
+                )
+                completed_process = subprocess.run(
+                    ["git", "-C", inventory_dir, "pull"], stdout=subprocess.PIPE
+                )
+                if not completed_process.returncode == 0:
+                    subprocess.check_output(
+                        ["git", "clone", inventory_git_url, inventory_dir],
+                        stdout=subprocess.PIPE,
+                    )
+
+    @staticmethod
+    def host_entry():
+        global host  # checkme
+        with open(inventory_dir + "/hosts/" + host + "/variables") as f:
+            _payload = f.read()
+        variables = [v for v in _payload.splitlines() if "=" in v]
+        with open(inventory_dir + "/hosts/" + host + "/roles") as f:
+            _payload = f.read()
+        roles = ["role=%s" % v for v in _payload.splitlines()]
+        modules = ["module=%s" % m for m in Utilities.host_modules(host)]
+        entries = ["host=%s" % host] + roles + modules + variables
+        return entries  # checkme
 
 
 def log_level(arg):
