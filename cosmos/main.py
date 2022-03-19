@@ -45,6 +45,14 @@ os.makedirs(Config.cosmos_root + "/log", exist_ok=True)
 logging.basicConfig(
     level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
 )
+# set up logging to console
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+# set a format which is simpler for console use
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+# add the handler to the root logger
+logging.getLogger('').addHandler(console)
 
 # lib = os.path.dirname(os.path.realpath(__file__))
 lib = Config.cosmos_root
@@ -315,15 +323,20 @@ Module actions:
     @staticmethod
     def apply_module(module):
         logging.info("applying module %s", module)
+        os.makedirs(data_dir + "/applied_modules", exist_ok=True)
         try:
             with open(Config.inventory_dir + "/modules/" + module + "/apply.py") as f:
                 _payload = f.read()
             exec(_payload)
+            with open(data_dir + "/applied_modules/" + module, "a") as f:
+             f.write("OK\n")
         except Exception as e:
             logging.exception("error in apply_module with error %s", repr(e))
-        os.makedirs(data_dir + "/applied_modules", exist_ok=True)
-        with open(data_dir + "/applied_modules/" + module, "a") as f:
-            f.write("OK\n")
+            logging.critical("exiting with lock enabled")
+            with open(data_dir + "/applied_modules/" + module, "a") as f:
+             f.write("FAILED\n")
+            raise
+
 
     @staticmethod
     def test_module(module):
@@ -432,6 +445,7 @@ class Utilities:
                             directive,
                             repr(e),
                         )
+                        logging.critical("lock not set, will run again at scheduled time even though failed")
 
     @staticmethod
     def fetch_inventory():
