@@ -45,20 +45,30 @@ data_dir = lib + "/data"
 status_file = data_dir + "/status"
 
 
-# read global variables.py
-if os.path.exists(Config.inventory_dir + "/variables.py"):
-    logging.debug("reading global vars")
-    with open(Config.inventory_dir + "/variables.py") as f:
-        payload = f.read()
-    exec(payload)
+def set_variables(module):
+    # read global variables.py
+    if os.path.exists(Config.inventory_dir + "/variables.py"):
+        logging.debug("reading global vars")
+        with open(Config.inventory_dir + "/variables.py") as f:
+            payload = f.read()
+        exec(payload)
 
-# read host variables.py
-machine_variables = Config.inventory_dir + "/hosts/" + socket.gethostname() + "/variables.py"
-if os.path.exists(machine_variables):
-    logging.debug("reading host vars")
-    with open(machine_variables) as f:
-        payload = f.read()
-    exec(payload)
+    # read module variables.py
+    if os.path.exists(Config.inventory_dir + "/modules/" + module + "/variables.py"):
+        logging.debug("reading modules vars")
+        with open(Config.inventory_dir + "/modules/" + module + "/variables.py") as f:
+            payload = f.read()
+        exec(payload)
+
+    # read host variables.py
+    machine_variables = (
+        Config.inventory_dir + "/hosts/" + socket.gethostname() + "/variables.py"
+    )
+    if os.path.exists(machine_variables):
+        logging.debug("reading host vars")
+        with open(machine_variables) as f:
+            payload = f.read()
+        exec(payload)
 
 
 class EntryPoints:
@@ -237,13 +247,56 @@ Usage:
 Options:
   --help                        Show this help message
   --version                     Show version
+  --log-level <level>           Set the log level (debug, info, warning, critical) [default: info]
+  --inventory <path>            Use a local inventory at the specified path
+  --no-fetch                    Don't fetch the inventory before running the command
+  --force                       Run even if a pause or runlock is set
+  --quiet|-q                    Suppress log messages
 
 Commands:
   status                        Report the status fo the last run [default]
   host <host> <action>          Perform actions specific to a given host
+  apply                         Apply roles and their associated modules on this host
+  fetch                         Update local database by fetching from upstream
+  directive                     Run any outstanding directives from the inventory
+  recover                       Reset run lock file after a failure
+  pause                         Set the pause lock to avoid periodic runs while debugging
+  resume                        Resume periodic runs after a pause
+  list-hosts [filter]           List hosts with an optional filter (e.g. role=[^=]*web)
+  list-modules                  List all avaliable modules
+  list-roles                    List all avaliable roles
+  uninstall                     Uninstall cron/scheduled tasks and delete cosmos install directory
+  check                         Check configuration a bit. Useful before a commit.
+  reset                         Remove the cosmos program, reclone inventory repo, and reinstall cron/schedtasks
+
+Inventory repository actions:
+  inventory diff                            Check to see what's changed in the local repo
+  inventory push                            Update inventory repo with current commit
+  inventory commit                          Create a commit in the local inventory repo
+  inventory skeleton                        Bootstrap the local inventory repo; useful for new installs
 
 Host actions:
   host <host> [host...]                     Show attributes for the host(s)
+  host <host> add                           Add the host to the inventory
+  host <host> remove                        Remove the host from the inventory
+  host <host> add-module <module>           Add the module to the host in the inventory
+  host <host> remove-module <module>        Remove the module from the host in the inventory
+  host <host> add-role <role>               Add the role to the host in the inventory
+  host <host> remove-role <role>            Remove the role from the host in the inventory
+
+Role actions:
+  role <role> add                           Add a skeleton for a new role by name
+  role <role> remove                        Remove a role by name
+
+Directive actions:
+  directive <directive> add                 Add a directive skeleton by name
+  directive <directive> remove              Remove a directive by name
+  directive                                 Execute all unexecuted directives less than 24h old
+
+Module actions:
+  module <module> add                       Add a skeleton for a new module by name
+  module <module> remove                    Remove a module by name
+
 """
         )
 
@@ -334,7 +387,7 @@ class Utilities:
             if os.path.isfile(os.path.join(data_dir + "/applied_modules/" + f))
         ]
         droppable_modules = [m for m in applied_modules if m not in modules]
-        logging.debug('droppable modules are: %s', droppable_modules)
+        logging.debug("droppable modules are: %s", droppable_modules)
 
     @staticmethod
     def check_inventory():
@@ -441,7 +494,7 @@ class Utilities:
 
     @staticmethod
     def host_entry(host):
-        with open(Config.inventory_dir + "/hosts/" + host + "/variables") as f:
+        with open(Config.inventory_dir + "/hosts/" + host + "/variables.py") as f:
             _payload = f.read()
         variables = [v for v in _payload.splitlines() if "=" in v]
         with open(Config.inventory_dir + "/hosts/" + host + "/roles") as f:
@@ -597,16 +650,15 @@ def main(argv):
                 Config.cosmos_root,
             )
             EntryPoints.install()
-            assert False, "installer finished"
+            logging.info("installer finished")
+            return
         os.chdir(Config.cosmos_root)
         if local_inventory:
             Config.inventory_dir = local_inventory
         if not command:
             command = "status"
         logging.debug("command: %s", command)
-        if command == "version":
-            logging.info(version())
-        elif command == "uninstall":
+        if command == "uninstall":
             EntryPoints.uninstall()
         elif command == "apply":
             Utilities.fetch_inventory()
@@ -623,10 +675,12 @@ def main(argv):
             # apply modules
             logging.info("running apply")
             for module in modules:
+                set_variables(module)
                 EntryPoints.apply_module(module)
                 EntryPoints.test_module(module)
             # drop obsolete modules
             for droppable_module in droppable_modules:
+                set_variables(droppable_module)
                 EntryPoints.drop_module(droppable_module)
             os.unlink(lock_file)
             EntryPoints.status("OK")
@@ -735,6 +789,9 @@ modules: %s
                 os.makedirs(Config.inventory_dir + "/modules", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/hosts", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/directives", exist_ok=True)
+                pathlib.Path(
+                    Config.inventory_dir +"/variables.py"
+                ).touch()
         elif command == "role":
             role = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
@@ -775,6 +832,9 @@ modules: %s
                 ).touch()
                 pathlib.Path(
                     Config.inventory_dir + "/modules/" + module + "/drop.py"
+                ).touch()
+                pathlib.Path(
+                    Config.inventory_dir + "/modules/" + module + "/variables.py"
                 ).touch()
             elif subcommand == "remove":
                 shutil.rmtree(Config.inventory_dir + "/modules/" + module)
@@ -828,6 +888,7 @@ modules: %s
                     Config.cosmos_root.replace("/", "\\"),
                 ]
             )
+            EntryPoints.install()
 
         else:
             assert False, "unknown command %s" % command
