@@ -35,6 +35,8 @@ class Config:
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
+
+
 # lib = os.path.dirname(os.path.realpath(__file__))
 lib = Config.cosmos_root
 lock_file = lib + "/.lock"
@@ -43,29 +45,20 @@ data_dir = lib + "/data"
 status_file = data_dir + "/status"
 
 
-class Variables:
-    @staticmethod
-    def run():
-        global caller_path
-        # read global variables
-        if os.path.exists(Config.inventory_dir + "/variables"):
-            with open(Config.inventory_dir + "/variables") as f:
-                payload = f.read()
-            exec(payload)  # checkme: place holder wont work
+# read global variables.py
+if os.path.exists(Config.inventory_dir + "/variables.py"):
+    logging.debug("reading global vars")
+    with open(Config.inventory_dir + "/variables.py") as f:
+        payload = f.read()
+    exec(payload)
 
-        # read caller variables form the module
-        caller_variables = os.path.dirname(caller_path) + "/variables"
-        if os.path.exists(caller_variables):
-            with open(caller_variables) as f:
-                payload = f.read()
-            exec(payload)  # checkme: place holder wont work
-
-        # read host variables
-        machine_variables = "inventory/hosts/" + socket.gethostname() + "/variables"
-        if os.path.exists(machine_variables):
-            with open(machine_variables) as f:
-                payload = f.read()
-            exec(payload)  # checkme: place holder wont work
+# read host variables.py
+machine_variables = Config.inventory_dir + "/hosts/" + socket.gethostname() + "/variables.py"
+if os.path.exists(machine_variables):
+    logging.debug("reading host vars")
+    with open(machine_variables) as f:
+        payload = f.read()
+    exec(payload)
 
 
 class EntryPoints:
@@ -97,7 +90,14 @@ class EntryPoints:
             except Exception as e:
                 logging.info("schtask cosmos_apply not removed with error %s", repr(e))
             shutil.rmtree(Config.inventory_dir) if os.name != "nt" else subprocess.run(
-                ["cmd", "/c", "rmdir", "/S", "/Q", Config.cosmos_root.replace("/", "\\")]
+                [
+                    "cmd",
+                    "/c",
+                    "rmdir",
+                    "/S",
+                    "/Q",
+                    Config.cosmos_root.replace("/", "\\"),
+                ]
             )
             logging.info("done")
 
@@ -261,7 +261,7 @@ Host actions:
     def apply_module(module):
         logging.info("applying module %s", module)
         try:
-            with open(Config.inventory_dir + "/modules/" + module + "/apply") as f:
+            with open(Config.inventory_dir + "/modules/" + module + "/apply.py") as f:
                 _payload = f.read()
             exec(_payload)
         except Exception as e:
@@ -272,11 +272,11 @@ Host actions:
 
     @staticmethod
     def test_module(module):
-        if not os.path.exists(Config.inventory_dir + "/modules/" + module + "/test"):
+        if not os.path.exists(Config.inventory_dir + "/modules/" + module + "/test.py"):
             return
         logging.info("testing module %s", module)
         try:
-            with open(Config.inventory_dir + "/modules/" + module + "/test") as f:
+            with open(Config.inventory_dir + "/modules/" + module + "/test.py") as f:
                 _payload = f.read()
             exec(_payload)
         except Exception as e:
@@ -286,7 +286,7 @@ Host actions:
     def drop_module(module):
         logging.info("dropping module %s", module)
         try:
-            with open(Config.inventory_dir + "/modules/" + module + "/drop") as f:
+            with open(Config.inventory_dir + "/modules/" + module + "/drop.py") as f:
                 _payload = f.read()
             exec(_payload)
         except Exception as e:
@@ -334,6 +334,7 @@ class Utilities:
             if os.path.isfile(os.path.join(data_dir + "/applied_modules/" + f))
         ]
         droppable_modules = [m for m in applied_modules if m not in modules]
+        logging.debug('droppable modules are: %s', droppable_modules)
 
     @staticmethod
     def check_inventory():
@@ -360,14 +361,22 @@ class Utilities:
                 mtime = os.stat(_path + "/" + directive).st_mtime
                 _payload = ""
                 if os.path.exists(data_dir + "/executed_directives/" + directive):
-                 with open(data_dir + "/executed_directives/" + directive) as f:
-                    _payload = f.read()
-                if "%d"%mtime not in _payload:
+                    with open(data_dir + "/executed_directives/" + directive) as f:
+                        _payload = f.read()
+                if "%d" % mtime not in _payload:
                     with open(data_dir + "/executed_directives/" + directive, "a") as f:
                         f.write("%d\n" % mtime)
-                    with open(Config.inventory_dir + "/directives/" + directive) as f:
-                        _payload = f.read()
-                    exec(_payload)
+                    directive_file = Config.inventory_dir + "/directives/" + directive
+                    try:
+                        with open(directive_file) as f:
+                            _payload = f.read()
+                        exec(_payload)
+                    except Exception as e:
+                        logging.exception(
+                            "error running directive %s with error %s",
+                            directive,
+                            repr(e),
+                        )
 
     @staticmethod
     def fetch_inventory():
@@ -406,7 +415,14 @@ class Utilities:
                     shutil.rmtree(
                         Config.inventory_dir
                     ) if os.name != "nt" else subprocess.run(
-                        ["cmd", "/c", "rmdir", "/S", "/Q", Config.inventory_dir.replace("/", "\\")]
+                        [
+                            "cmd",
+                            "/c",
+                            "rmdir",
+                            "/S",
+                            "/Q",
+                            Config.inventory_dir.replace("/", "\\"),
+                        ]
                     )
                     git_output = subprocess.check_output(
                         [
@@ -507,7 +523,7 @@ class Utilities:
             if not x.startswith(".")
         ]:
             assert os.path.exists(
-                Config.inventory_dir + "/modules/" + module + "/apply"
+                Config.inventory_dir + "/modules/" + module + "/apply.py"
             ), ("no apply script for module %s" % module)
 
     @staticmethod
@@ -753,6 +769,12 @@ modules: %s
                 os.makedirs(Config.inventory_dir + "/modules/" + module, exist_ok=True)
                 pathlib.Path(
                     Config.inventory_dir + "/modules/" + module + "/apply.py"
+                ).touch()
+                pathlib.Path(
+                    Config.inventory_dir + "/modules/" + module + "/test.py"
+                ).touch()
+                pathlib.Path(
+                    Config.inventory_dir + "/modules/" + module + "/drop.py"
                 ).touch()
             elif subcommand == "remove":
                 shutil.rmtree(Config.inventory_dir + "/modules/" + module)
