@@ -35,7 +35,11 @@ class Config:
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
-    PYTHON_BIN = 'python3'if os.name !='nt'else 'C:\Users\jd\AppData\Local\Programs\Python\Python39\python.exe'
+    PYTHON_BIN = (
+        "python3"
+        if os.name != "nt"
+        else "C:\\Users\\jd\\AppData\\Local\\Programs\\Python\\Python39\\python.exe"
+    )
 
 
 # lib = os.path.dirname(os.path.realpath(__file__))
@@ -199,7 +203,7 @@ class EntryPoints:
                         "/st",
                         "00:00",
                         "/tr",
-                        Config.PYTHON_BIN+" c:\\cosmos\\cosmos.py directive",
+                        Config.PYTHON_BIN + " c:\\cosmos\\cosmos.py directive",
                     ]
                 )
                 logging.debug("schtasks_create_directive: %s", schtasks_output.decode())
@@ -219,7 +223,7 @@ class EntryPoints:
                         "/st",
                         "00:%02d" % random.randint(0, 59),
                         "/tr",
-                        Config.PYTHON_BIN+" c:\\cosmos\\cosmos.py apply",
+                        Config.PYTHON_BIN + " c:\\cosmos\\cosmos.py apply",
                     ]
                 )
                 logging.debug("schtasks_create_apply: %s", schtasks_output.decode())
@@ -482,9 +486,7 @@ class Utilities:
 
             else:
                 if os.path.exists(Config.inventory_dir):
-                    shutil.rmtree(
-                        Config.inventory_dir
-                    )
+                    shutil.rmtree(Config.inventory_dir)
                 subprocess.check_output(
                     ["git", "clone", Config.inventory_git_url, Config.inventory_dir]
                 )
@@ -786,9 +788,7 @@ modules: %s
                 os.makedirs(Config.inventory_dir + "/modules", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/hosts", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/directives", exist_ok=True)
-                pathlib.Path(
-                    Config.inventory_dir +"/variables.py"
-                ).touch()
+                pathlib.Path(Config.inventory_dir + "/variables.py").touch()
         elif command == "role":
             role = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
