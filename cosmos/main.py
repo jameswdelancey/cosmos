@@ -50,8 +50,8 @@ if len(sys.argv) > 1 and sys.argv[1] != "reset":
 console = logging.StreamHandler()
 console.setLevel(logging.DEBUG)
 # set a format which is simpler for console use
-# formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-# console.setFormatter(formatter)
+formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
+console.setFormatter(formatter)
 # add the handler to the root logger
 logging.getLogger("").addHandler(console)
 
