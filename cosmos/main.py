@@ -133,7 +133,7 @@ class EntryPoints:
     @staticmethod
     def install():
         VERSION = "0.1.0"
-        AV_PATH = Config.INSTALL_PATH + "/cosmos/cosmos"
+        AV_PATH = Config.INSTALL_PATH + "/cosmos/cosmos.py"
         RELEASE_URL = "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py"
         INVENTORY_GIT_URL = sys.argv[1] if len(sys.argv) > 1 else ""
         CONFIG_FILE = Config.INSTALL_PATH + "/cosmos/config"
