@@ -1,7 +1,7 @@
 # cosmos
 Minimal distributed configuration management in python
 
-Evolving from a port of aviary.sh.
+This is a python port of https://github.com/frameable/aviary.sh.
  - Windows and Linux supported
  - Now written in python
  - All the methods to apply or remove roles are written in python
