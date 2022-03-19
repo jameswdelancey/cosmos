@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 
-logging.basicConfig(level="DEBUG")
 
 version = "0.1.0"
 
@@ -41,6 +40,11 @@ class Config:
         else "C:\\Users\\jd\\AppData\\Local\\Programs\\Python\\Python39\\python.exe"
     )
 
+
+os.makedirs(Config.cosmos_root + "/log", exist_ok=True)
+logging.basicConfig(
+    level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
+)
 
 # lib = os.path.dirname(os.path.realpath(__file__))
 lib = Config.cosmos_root
