@@ -83,6 +83,7 @@ def set_variables(module):
 class EntryPoints:
     @staticmethod
     def uninstall():
+        AV_PATH = Config.INSTALL_PATH + "/cosmos/cosmos.py"
         if os.name != "nt":
             logging.info("adding entry to /etc/crontab...")
             with open("/etc/crontab") as f:
