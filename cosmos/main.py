@@ -206,7 +206,7 @@ class EntryPoints:
                         "/st",
                         "00:00",
                         "/tr",
-                        "python c:/cosmos/cosmos.py directive",
+                        "python c:\\cosmos\\cosmos.py directive",
                     ]
                 )
                 logging.debug("schtasks_create_directive: %s", schtasks_output.decode())
@@ -226,7 +226,7 @@ class EntryPoints:
                         "/st",
                         "00:%02d" % random.randint(0, 59),
                         "/tr",
-                        "python c:/cosmos/cosmos.py apply",
+                        "python c:\\cosmos\\cosmos.py apply",
                     ]
                 )
                 logging.debug("schtasks_create_apply: %s", schtasks_output.decode())
