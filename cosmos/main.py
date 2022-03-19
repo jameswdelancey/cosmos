@@ -42,17 +42,18 @@ class Config:
 
 
 os.makedirs(Config.cosmos_root + "/log", exist_ok=True)
-logging.basicConfig(
-    level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
-)
+if sys.argv[1] != "reset":
+    logging.basicConfig(
+        level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
+    )
 # set up logging to console
 console = logging.StreamHandler()
 console.setLevel(logging.DEBUG)
 # set a format which is simpler for console use
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
 console.setFormatter(formatter)
 # add the handler to the root logger
-logging.getLogger('').addHandler(console)
+logging.getLogger("").addHandler(console)
 
 # lib = os.path.dirname(os.path.realpath(__file__))
 lib = Config.cosmos_root
@@ -174,13 +175,17 @@ class EntryPoints:
                 _payload = f.read()
             _payloadlines = [x for x in _payload.splitlines() if AV_PATH not in x]
             _payloadlines.append(
-                "0 * * * * root "+Config.PYTHON_BIN+" "
+                "0 * * * * root "
+                + Config.PYTHON_BIN
+                + " "
                 + AV_PATH
                 + " directive >> /var/log/cosmos-directive.log 2>&1"
             )
             _payloadlines.append(
                 str(random.randint(0, 59))
-                + " * * * * root "+Config.PYTHON_BIN+" "
+                + " * * * * root "
+                + Config.PYTHON_BIN
+                + " "
                 + AV_PATH
                 + " active >> /var/log/cosmos-apply.log 2>&1"
             )
@@ -329,14 +334,13 @@ Module actions:
                 _payload = f.read()
             exec(_payload)
             with open(data_dir + "/applied_modules/" + module, "a") as f:
-             f.write("OK\n")
+                f.write("OK\n")
         except Exception as e:
             logging.exception("error in apply_module with error %s", repr(e))
             logging.critical("exiting with lock enabled")
             with open(data_dir + "/applied_modules/" + module, "a") as f:
-             f.write("FAILED\n")
+                f.write("FAILED\n")
             raise
-
 
     @staticmethod
     def test_module(module):
@@ -445,7 +449,9 @@ class Utilities:
                             directive,
                             repr(e),
                         )
-                        logging.critical("lock not set, will run again at scheduled time even though failed")
+                        logging.critical(
+                            "lock not set, will run again at scheduled time even though failed"
+                        )
 
     @staticmethod
     def fetch_inventory():
