@@ -481,6 +481,10 @@ class Utilities:
                     logging.debug("git clone output: %s", git_output.decode())
 
             else:
+                if os.path.exists(Config.inventory_dir):
+                    shutil.rmtree(
+                        Config.inventory_dir
+                    )
                 subprocess.check_output(
                     ["git", "clone", Config.inventory_git_url, Config.inventory_dir]
                 )
