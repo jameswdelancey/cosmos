@@ -1,4 +1,6 @@
 # cosmos
 Minimal distributed configuration management in python
 
-> Total work in progress. Check back in a week for a minimal running version.
+Evolving from a port of aviary.sh.
+
+> Minimal version is working for Windows machines at this moment. Check back for updates for working with linux machines.
