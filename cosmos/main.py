@@ -14,11 +14,6 @@ import time
 logging.basicConfig(level="DEBUG")
 
 version = "0.1.0"
-lib = os.path.dirname(os.path.realpath(__file__))
-lock_file = lib + ".lock"
-pause_file = lib + ".pause"
-data_dir = lib + "/data"
-status_file = data_dir + "/status"
 
 force = ""
 command = ""
@@ -40,6 +35,12 @@ class Config:
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
+# lib = os.path.dirname(os.path.realpath(__file__))
+lib = Config.cosmos_root
+lock_file = lib + "/.lock"
+pause_file = lib + "/.pause"
+data_dir = lib + "/data"
+status_file = data_dir + "/status"
 
 
 class Variables:
@@ -266,7 +267,7 @@ Host actions:
         except Exception as e:
             logging.exception("error in apply_module with error %s", repr(e))
         os.makedirs(data_dir + "/applied_modules", exist_ok=True)
-        with open(data_dir + "/applied_modules/" + module) as f:
+        with open(data_dir + "/applied_modules/" + module, "a") as f:
             f.write("OK\n")
 
     @staticmethod
@@ -344,7 +345,7 @@ class Utilities:
         )
 
     @staticmethod
-    def execute_directive():
+    def execute_directives():
         _path = Config.inventory_dir + "/directives"
         now = time.time()
         if os.path.isdir(_path):
@@ -352,17 +353,19 @@ class Utilities:
             inventory_directives = [
                 f
                 for f in os.listdir(_path)
-                if os.stat(_path + "/" + f).st_mtime < now - 86400
+                if os.stat(_path + "/" + f).st_mtime > now - 86400
             ]
             os.makedirs(data_dir + "/executed_directives", exist_ok=True)
             for directive in inventory_directives:
                 mtime = os.stat(_path + "/" + directive).st_mtime
-                with open(data_dir + "/executed_directives/" + directive) as f:
+                _payload = ""
+                if os.path.exists(data_dir + "/executed_directives/" + directive):
+                 with open(data_dir + "/executed_directives/" + directive) as f:
                     _payload = f.read()
-                if mtime not in _payload:
-                    with open(data_dir + "/executed_directives/" + directive) as f:
+                if "%d"%mtime not in _payload:
+                    with open(data_dir + "/executed_directives/" + directive, "a") as f:
                         f.write("%d\n" % mtime)
-                    with open(data_dir + "/directives/" + directive) as f:
+                    with open(Config.inventory_dir + "/directives/" + directive) as f:
                         _payload = f.read()
                     exec(_payload)
 
@@ -645,9 +648,6 @@ modules: %s
                 logging.info("-- run lock is set; clear with `cosmos recover` --")
             if os.path.exists(pause_file):
                 logging.info("-- pause lock is set; clear with `cosmos resume` --")
-        elif command == "directive":
-            Utilities.fetch_inventory()
-            Utilities.identify()
 
         elif command == "list-hosts":
             filters = command_arg
@@ -718,6 +718,7 @@ modules: %s
                 os.makedirs(Config.inventory_dir + "/roles", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/modules", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/hosts", exist_ok=True)
+                os.makedirs(Config.inventory_dir + "/directives", exist_ok=True)
         elif command == "role":
             role = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
@@ -729,6 +730,21 @@ modules: %s
                 ).touch()
             elif subcommand == "remove":
                 shutil.rmtree(Config.inventory_dir + "/roles/" + role)
+
+        elif command == "directive":
+            directive = command_arg
+            subcommand = argv[3] if len(argv) > 3 else ""
+            subcommand_arg = argv[4] if len(argv) > 4 else ""
+            if subcommand == "add":
+                pathlib.Path(
+                    Config.inventory_dir + "/directives/" + directive + ".py"
+                ).touch()
+            elif subcommand == "remove":
+                shutil.rmtree(Config.inventory_dir + "/directives/" + directive)
+            else:
+                Utilities.fetch_inventory()
+                logging.debug("executing directives")
+                Utilities.execute_directives()
         elif command == "module":
             module = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
@@ -736,7 +752,7 @@ modules: %s
             if subcommand == "add":
                 os.makedirs(Config.inventory_dir + "/modules/" + module, exist_ok=True)
                 pathlib.Path(
-                    Config.inventory_dir + "/modules/" + module + "/apply"
+                    Config.inventory_dir + "/modules/" + module + "/apply.py"
                 ).touch()
             elif subcommand == "remove":
                 shutil.rmtree(Config.inventory_dir + "/modules/" + module)
@@ -748,7 +764,7 @@ modules: %s
             if subcommand == "add":
                 os.makedirs(Config.inventory_dir + "/hosts/" + host, exist_ok=True)
                 pathlib.Path(
-                    Config.inventory_dir + "/hosts/" + host + "/variables"
+                    Config.inventory_dir + "/hosts/" + host + "/variables.py"
                 ).touch()
                 pathlib.Path(Config.inventory_dir + "/hosts/" + host + "/roles").touch()
                 pathlib.Path(
