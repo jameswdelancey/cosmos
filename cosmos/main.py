@@ -42,7 +42,7 @@ class Config:
 
 
 os.makedirs(Config.cosmos_root + "/log", exist_ok=True)
-if sys.argv[1] != "reset":
+if len(sys.argv) > 2 and sys.argv[2] != "reset":
     logging.basicConfig(
         level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
     )
@@ -50,8 +50,8 @@ if sys.argv[1] != "reset":
 console = logging.StreamHandler()
 console.setLevel(logging.DEBUG)
 # set a format which is simpler for console use
-formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-console.setFormatter(formatter)
+# formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
+# console.setFormatter(formatter)
 # add the handler to the root logger
 logging.getLogger("").addHandler(console)
 
