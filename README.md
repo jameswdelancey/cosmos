@@ -1,5 +1,5 @@
 # cosmos
-Minimal distributed configuration management in python
+Minimal distributed service binary/configuration management in python
 
 This is a python port of https://github.com/frameable/aviary.sh.
  - Windows and Linux supported
