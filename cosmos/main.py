@@ -35,6 +35,7 @@ class Config:
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
+    PYTHON_BIN = 'python3'if os.name !='nt'else 'python'
 
 
 # lib = os.path.dirname(os.path.realpath(__file__))
@@ -145,26 +146,18 @@ class EntryPoints:
         logging.debug("curl_output: %s", curl_output.decode())
         with open(Config.INSTALL_PATH + "/cosmos/cosmos.py", "wb") as f:
             f.write(curl_output)
-        # tar_output = subprocess.check_output(
-        #     ["tar", "-xz", "-", "-C", Config.INSTALL_PATH + "/cosmos"],
-        #     input=curl_output,
-        # )
-        # logging.debug("tar_output: %s", tar_output.decode())
         # subprocess.check_output(
         #     "ln -sf /var/lib/cosmos/cosmos /usr/bin/cosmos", shell=True
         # )
         os.makedirs(Config.INSTALL_PATH + "/cosmos/inventory", exist_ok=True)
 
-        # if Config.inventory_git_url:
-        #     with open(CONFIG_FILE, "a") as f:
-        #         f.write("inventory_git_url='%s'\n" % Config.inventory_git_url)
         if os.name != "nt":
             logging.info("adding entry to /etc/crontab...")
             with open("/etc/crontab") as f:
                 _payload = f.read()
             _payloadlines = [x for x in _payload.splitlines() if AV_PATH not in x]
             _payloadlines.append(
-                "* * * * * root "
+                "0 * * * * root "
                 + AV_PATH
                 + " directive >> /var/log/cosmos-directive.log 2>&1"
             )
@@ -206,7 +199,7 @@ class EntryPoints:
                         "/st",
                         "00:00",
                         "/tr",
-                        "python c:\\cosmos\\cosmos.py directive",
+                        Config.PYTHON_BIN+" c:\\cosmos\\cosmos.py directive",
                     ]
                 )
                 logging.debug("schtasks_create_directive: %s", schtasks_output.decode())
@@ -226,7 +219,7 @@ class EntryPoints:
                         "/st",
                         "00:%02d" % random.randint(0, 59),
                         "/tr",
-                        "python c:\\cosmos\\cosmos.py apply",
+                        Config.PYTHON_BIN+" c:\\cosmos\\cosmos.py apply",
                     ]
                 )
                 logging.debug("schtasks_create_apply: %s", schtasks_output.decode())
