@@ -35,7 +35,7 @@ class Config:
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
-    PYTHON_BIN = 'python3'if os.name !='nt'else 'python'
+    PYTHON_BIN = 'python3'if os.name !='nt'else 'C:\Users\jd\AppData\Local\Programs\Python\Python39\python.exe'
 
 
 # lib = os.path.dirname(os.path.realpath(__file__))
