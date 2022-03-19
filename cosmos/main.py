@@ -35,7 +35,7 @@ class Config:
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
     PYTHON_BIN = (
-        "python3"
+        "/usr/bin/python3"
         if os.name != "nt"
         else "C:\\Users\\jd\\AppData\\Local\\Programs\\Python\\Python39\\python.exe"
     )
@@ -165,13 +165,13 @@ class EntryPoints:
                 _payload = f.read()
             _payloadlines = [x for x in _payload.splitlines() if AV_PATH not in x]
             _payloadlines.append(
-                "0 * * * * root "
+                "0 * * * * root "+Config.PYTHON_BIN+" "
                 + AV_PATH
                 + " directive >> /var/log/cosmos-directive.log 2>&1"
             )
             _payloadlines.append(
                 str(random.randint(0, 59))
-                + " * * * * root "
+                + " * * * * root "+Config.PYTHON_BIN+" "
                 + AV_PATH
                 + " active >> /var/log/cosmos-apply.log 2>&1"
             )
