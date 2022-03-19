@@ -1,15 +1,15 @@
-import io
-import shutil
 import datetime
-import pathlib
-import re
-import time
-import random
-import subprocess
+import io
 import logging
 import os
+import pathlib
+import random
+import re
+import shutil
 import socket
+import subprocess
 import sys
+import time
 
 logging.basicConfig(level="DEBUG")
 
@@ -68,6 +68,38 @@ class Variables:
 
 
 class EntryPoints:
+    @staticmethod
+    def uninstall():
+        if os.name != "nt":
+            logging.info("adding entry to /etc/crontab...")
+            with open("/etc/crontab") as f:
+                _payload = f.read()
+            _payloadlines = [x for x in _payload.splitlines() if AV_PATH not in x]
+            with open("/etc/crontab", "w") as f:
+                f.write("\n".join(_payloadlines))
+        else:
+            schtasks_output = ""
+            try:
+                schtasks_output = subprocess.check_output(
+                    ["schtasks.exe", "/delete", "/tn", "cosmos_directive", "/F"]
+                )
+                logging.debug("schtasks_delete_directive: %s", schtasks_output.decode())
+            except Exception as e:
+                logging.info(
+                    "schtask cosmos_directive not removed with error %s", repr(e)
+                )
+            try:
+                schtasks_output = subprocess.check_output(
+                    ["schtasks.exe", "/delete", "/tn", "cosmos_apply", "/F"]
+                )
+                logging.debug("schtasks_delete_apply: %s", schtasks_output.decode())
+            except Exception as e:
+                logging.info("schtask cosmos_apply not removed with error %s", repr(e))
+            shutil.rmtree(Config.inventory_dir) if os.name != "nt" else subprocess.run(
+                ["cmd", "/c", "rmdir", "/S", "/Q", Config.cosmos_root.replace("/", "\\")]
+            )
+            logging.info("done")
+
     @staticmethod
     def install():
         VERSION = "0.1.0"
@@ -267,7 +299,7 @@ class Utilities:
         # identify our roles
         with open(Config.inventory_dir + "/hosts/" + host + "/roles") as f:
             _payload = f.read()
-        roles = _payload.splitlines()
+        roles = [x for x in _payload.splitlines() if x]
         return roles
 
     @staticmethod
@@ -276,11 +308,11 @@ class Utilities:
         modules = []
         with open(Config.inventory_dir + "/hosts/" + host + "/modules") as f:
             _payload = f.read()
-        modules.extend(_payload.splitlines())
+        modules.extend([x for x in _payload.splitlines() if x])
         for role in roles:
             with open(Config.inventory_dir + "/roles/" + role + "/modules") as f:
                 _payload = f.read()
-            modules.extend(_payload.splitlines())
+            modules.extend([x for x in _payload.splitlines() if x])
         return modules
 
     @staticmethod
@@ -371,7 +403,7 @@ class Utilities:
                     shutil.rmtree(
                         Config.inventory_dir
                     ) if os.name != "nt" else subprocess.run(
-                        ["cmd", "/c", "rmdir", "/S", "/Q", Config.inventory_dir]
+                        ["cmd", "/c", "rmdir", "/S", "/Q", Config.inventory_dir.replace("/", "\\")]
                     )
                     git_output = subprocess.check_output(
                         [
@@ -436,7 +468,7 @@ class Utilities:
         assert role in os.listdir(Config.inventory_dir + "/roles"), (
             "couldn't find role %s" % role
         )
-        roles_file = Config.inventory_dir + "/hosts/" + host + "/modules"
+        roles_file = Config.inventory_dir + "/hosts/" + host + "/roles"
         os.makedirs(Config.inventory_dir + "/hosts/" + host, exist_ok=True)
         Utilities.host_remove_role(host, role)
         with open(roles_file, "a") as f:
@@ -444,7 +476,11 @@ class Utilities:
 
     @staticmethod
     def check_roles():
-        for role in [x for x in os.listdir(Config.inventory_dir + "/roles") if not x.startswith(".")]:
+        for role in [
+            x
+            for x in os.listdir(Config.inventory_dir + "/roles")
+            if not x.startswith(".")
+        ]:
             assert os.path.exists(
                 Config.inventory_dir + "/roles/" + role + "/modules"
             ), ("no modules file for role `%s`" % role)
@@ -462,14 +498,22 @@ class Utilities:
 
     @staticmethod
     def check_modules():
-        for module in [x for x in os.listdir(Config.inventory_dir + "/modules") if not x.startswith(".")]:
+        for module in [
+            x
+            for x in os.listdir(Config.inventory_dir + "/modules")
+            if not x.startswith(".")
+        ]:
             assert os.path.exists(
                 Config.inventory_dir + "/modules/" + module + "/apply"
             ), ("no apply script for module %s" % module)
 
     @staticmethod
     def check_hosts():
-        for host in [x for x in os.listdir(Config.inventory_dir + "/hosts") if not x.startswith(".")]:
+        for host in [
+            x
+            for x in os.listdir(Config.inventory_dir + "/hosts")
+            if not x.startswith(".")
+        ]:
             # checkme below is there always the modules folder?
             assert os.path.exists(
                 Config.inventory_dir + "/hosts/" + host + "/modules"
@@ -543,6 +587,8 @@ def main(argv):
         logging.debug("command: %s", command)
         if command == "version":
             logging.info(version())
+        elif command == "uninstall":
+            EntryPoints.uninstall()
         elif command == "apply":
             Utilities.fetch_inventory()
             Utilities.identify()
@@ -607,7 +653,11 @@ modules: %s
             filters = command_arg
             Utilities.fetch_inventory()
             entries = ""
-            hosts = [x for x in os.listdir(Config.inventory_dir + "/hosts") if not x.startswith(".")]
+            hosts = [
+                x
+                for x in os.listdir(Config.inventory_dir + "/hosts")
+                if not x.startswith(".")
+            ]
             for host in hosts:
                 host_entry = Utilities.host_entry(host)
                 entries += host + "\t" + str(host_entry) + "\n"
@@ -620,11 +670,23 @@ modules: %s
 
         elif command == "list-modules":
             Utilities.fetch_inventory()
-            logging.info([x for x in os.listdir(Config.inventory_dir + "/modules") if not x.startswith(".")])
+            logging.info(
+                [
+                    x
+                    for x in os.listdir(Config.inventory_dir + "/modules")
+                    if not x.startswith(".")
+                ]
+            )
 
         elif command == "list-roles":
             Utilities.fetch_inventory()
-            logging.info([x for x in os.listdir(Config.inventory_dir + "/roles") if not x.startswith(".")])
+            logging.info(
+                [
+                    x
+                    for x in os.listdir(Config.inventory_dir + "/roles")
+                    if not x.startswith(".")
+                ]
+            )
 
         elif command == "check":
             Utilities.check_modules()
@@ -656,7 +718,7 @@ modules: %s
                 os.makedirs(Config.inventory_dir + "/roles", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/modules", exist_ok=True)
                 os.makedirs(Config.inventory_dir + "/hosts", exist_ok=True)
-        elif command =='role':
+        elif command == "role":
             role = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
             subcommand_arg = argv[4] if len(argv) > 4 else ""
@@ -667,7 +729,7 @@ modules: %s
                 ).touch()
             elif subcommand == "remove":
                 shutil.rmtree(Config.inventory_dir + "/roles/" + role)
-        elif command =='module':
+        elif command == "module":
             module = command_arg
             subcommand = argv[3] if len(argv) > 3 else ""
             subcommand_arg = argv[4] if len(argv) > 4 else ""
@@ -688,9 +750,7 @@ modules: %s
                 pathlib.Path(
                     Config.inventory_dir + "/hosts/" + host + "/variables"
                 ).touch()
-                pathlib.Path(
-                    Config.inventory_dir + "/hosts/" + host + "/roles"
-                ).touch()
+                pathlib.Path(Config.inventory_dir + "/hosts/" + host + "/roles").touch()
                 pathlib.Path(
                     Config.inventory_dir + "/hosts/" + host + "/modules"
                 ).touch()
