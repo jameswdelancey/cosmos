@@ -339,7 +339,7 @@ Module actions:
             logging.exception("error in apply_module with error %s", repr(e))
             logging.critical("exiting with lock enabled")
             with open(data_dir + "/applied_modules/" + module, "a") as f:
-                f.write("FAILED\n")
+                f.write("FAILED APPLY\n")
             raise
 
     @staticmethod
@@ -353,6 +353,10 @@ Module actions:
             exec(_payload)
         except Exception as e:
             logging.exception("error in test_module with error %s", repr(e))
+            logging.critical("exiting with lock enabled")
+            with open(data_dir + "/applied_modules/" + module, "a") as f:
+                f.write("FAILED TEST\n")
+            raise
 
     @staticmethod
     def drop_module(module):
