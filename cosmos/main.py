@@ -40,9 +40,9 @@ class Config:
         else "C:\\Users\\jd\\AppData\\Local\\Programs\\Python\\Python39\\python.exe"
     )
 
-
+logging.error(repr(sys.argv))
 os.makedirs(Config.cosmos_root + "/log", exist_ok=True)
-if len(sys.argv) > 2 and sys.argv[2] != "reset":
+if len(sys.argv) > 1 and sys.argv[1] != "reset":
     logging.basicConfig(
         level="DEBUG", filename=Config.cosmos_root + "/log/%d.log" % time.time()
     )
