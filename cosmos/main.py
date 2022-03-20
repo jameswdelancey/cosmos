@@ -182,7 +182,7 @@ class EntryPoints:
                 + " directive >> /var/log/cosmos-directive.log 2>&1"
             )
             _payloadlines.append(
-                str(random.randint(0, 59))
+                str(random.randint(1, 59))
                 + " * * * * root "
                 + Config.PYTHON_BIN
                 + " "
@@ -239,7 +239,7 @@ class EntryPoints:
                         "/sc",
                         "hourly",
                         "/st",
-                        "00:%02d" % random.randint(0, 59),
+                        "00:%02d" % random.randint(1, 59),
                         "/tr",
                         Config.PYTHON_BIN + " c:\\cosmos\\cosmos.py apply",
                     ]
