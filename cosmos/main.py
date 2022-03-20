@@ -689,6 +689,12 @@ def main(argv):
         if command == "uninstall":
             EntryPoints.uninstall()
         elif command == "apply":
+            # update cosmos.py before setting lock file
+            if datetime.datetime.now().hour == 1:
+                curl_output = subprocess.check_output(["curl", "-s", RELEASE_URL])
+                logging.debug("curl_output: %s", curl_output.decode())
+                with open(Config.INSTALL_PATH + "/cosmos/cosmos.py", "wb") as f:
+                    f.write(curl_output)
             # prevent a scheduler from running both apply and directive at the same
             # time and causing git to crash.
             time.sleep(10)
