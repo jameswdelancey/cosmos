@@ -187,7 +187,7 @@ class EntryPoints:
                 + Config.PYTHON_BIN
                 + " "
                 + AV_PATH
-                + " active >> /var/log/cosmos-apply.log 2>&1"
+                + " apply >> /var/log/cosmos-apply.log 2>&1"
             )
             with open("/etc/crontab", "w") as f:
                 f.write("\n".join(_payloadlines))
