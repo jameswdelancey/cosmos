@@ -239,7 +239,7 @@ class EntryPoints:
                         "/sc",
                         "hourly",
                         "/st",
-                        "00:%02d" % random.randint(1, 59),
+                        "00:%02d" % random.randint(0, 59),
                         "/tr",
                         Config.PYTHON_BIN + " c:\\cosmos\\cosmos.py apply",
                     ]
