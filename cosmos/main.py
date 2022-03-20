@@ -182,7 +182,7 @@ class EntryPoints:
                 + " directive >> /var/log/cosmos-directive.log 2>&1"
             )
             _payloadlines.append(
-                str(random.randint(1, 59))
+                str(random.randint(0, 59))
                 + " * * * * root "
                 + Config.PYTHON_BIN
                 + " "
@@ -689,6 +689,9 @@ def main(argv):
         if command == "uninstall":
             EntryPoints.uninstall()
         elif command == "apply":
+            # prevent a scheduler from running both apply and directive at the same
+            # time and causing git to crash.
+            time.sleep(10)
             Utilities.fetch_inventory()
             Utilities.identify()
             # consult pause file
