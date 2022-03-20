@@ -691,6 +691,7 @@ def main(argv):
         elif command == "apply":
             # update cosmos.py before setting lock file
             if datetime.datetime.now().hour == 1:
+                RELEASE_URL = "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py"
                 curl_output = subprocess.check_output(["curl", "-s", RELEASE_URL])
                 logging.debug("curl_output: %s", curl_output.decode())
                 with open(Config.INSTALL_PATH + "/cosmos/cosmos.py", "wb") as f:
