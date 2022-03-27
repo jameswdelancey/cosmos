@@ -13,6 +13,13 @@ Install like this:
  - Download: "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py"
  - Run this in python3
 
+```
+su -l
+apt update; apt -y upgrade; apt install -y git python3 python3-pip sudo curl
+nano /etc/environment  # put your vars here or whatever equivalent you like
+sudo -E curl "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py" | python3
+```
+
 Discussion:
  - This is a lightweight alternative to Ansible, Salt, Puppet, Chef.
  - This is agent based.
