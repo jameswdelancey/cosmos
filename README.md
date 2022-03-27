@@ -17,7 +17,7 @@ Install like this:
 su -l
 apt update; apt -y upgrade; apt install -y git python3 python3-pip sudo curl
 nano /etc/environment  # put your vars here or whatever equivalent you like
-sudo -E curl "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py" | python3
+curl "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py" | sudo -E python3
 ```
 
 Discussion:
