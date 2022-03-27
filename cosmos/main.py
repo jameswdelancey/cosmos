@@ -948,6 +948,7 @@ modules: %s
         return 1
     finally:
         thread_stop.append(None)
+        logging.info("closing")
         [t.join() for t in threads]
     return 0
 
