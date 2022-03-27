@@ -59,10 +59,10 @@ logging.getLogger("").addHandler(console)
 threads = []
 thread_stop = []
 tmsrp = os.environ.get("TIMESERIES_SERVER_REPO_PATH")
+log_queue = queue.Queue()
 if tmsrp and os.path.exists(tmsrp+"/timeseries_server/timeseries_client.py"):
     with open(tmsrp+"/timeseries_server/timeseries_client.py") as f:
         exec(f.read())
-    log_queue = queue.Queue()
     root_logger = logging.getLogger("")
     root_logger.addHandler(logging.handlers.QueueHandler(log_queue))
     log_to_timeseries_server(threads, thread_stop, log_queue)
@@ -948,8 +948,7 @@ modules: %s
         return 1
     finally:
         thread_stop.append(None)
-        if globals().get("log_queue"):
-         log_queue.put(None)
+        log_queue.put(None)
         [t.join() for t in threads]
     return 0
 
