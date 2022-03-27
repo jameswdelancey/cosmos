@@ -948,7 +948,7 @@ modules: %s
         return 1
     finally:
         thread_stop.append(None)
-        logging.info("closing")
+        log_queue.put(None)
         [t.join() for t in threads]
     return 0
 
