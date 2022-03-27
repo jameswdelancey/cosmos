@@ -53,8 +53,10 @@ console.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
 console.setFormatter(formatter)
 # add the handler to the root logger
-logging.getLogger().addHandler(console)
+logging.getLogger("").addHandler(console)
 
+threads = []
+thread_stop = []
 tmsrp = os.environ.get("TIMESERIES_SERVER_REPO_PATH")
 if tmsrp and os.path.exists(tmsrp+"/timeseries_server/timeseries_client.py"):
     with open(tmsrp+"/timeseries_server/timeseries_client.py") as f:
@@ -62,8 +64,6 @@ if tmsrp and os.path.exists(tmsrp+"/timeseries_server/timeseries_client.py"):
     log_queue = queue.Queue()
     root_logger = logging.getLogger()
     root_logger.addHandler(logging.handlers.QueueHandler(log_queue))
-    threads = []
-    thread_stop = []
     log_to_timeseries_server(threads, thread_stop, log_queue)
 
 # lib = os.path.dirname(os.path.realpath(__file__))
@@ -945,6 +945,9 @@ modules: %s
     except Exception as e:
         logging.exception("exiting abnormally with error %s", repr(e))
         return 1
+    finally:
+        thread_stop.append(None)
+        [t.join() for t in threads]
     return 0
 
 
