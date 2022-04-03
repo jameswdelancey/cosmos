@@ -202,7 +202,8 @@ class EntryPoints:
                 + " apply >> /var/log/cosmos-apply.log 2>&1"
             )
             with open("/etc/crontab", "w") as f:
-                f.write("\n".join(_payloadlines))
+                f.write("\n".join(_payloadlines) + "\n")
+            subprocess.run(["systemctl", "restart", "cron"])
         else:
             schtasks_output = ""
             try:
