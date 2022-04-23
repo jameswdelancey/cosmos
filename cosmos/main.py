@@ -27,11 +27,7 @@ HOSTNAME = socket.gethostname()
 
 
 class Config:
-    inventory_git_url = (
-        "https://jameswdelancey:"
-        + os.environ.get("ACCESS_TOKEN")
-        + "@github.com/jameswdelancey/cosmos_inventory_example"
-    )
+    inventory_git_url = os.environ.get("COSMOS_INVENTORY_REPO", "")
     cosmos_root = "/var/lib/cosmos" if os.name != "nt" else "c:/cosmos"
     inventory_dir = cosmos_root + "/inventory"
     INSTALL_PATH = "/var/lib" if os.name != "nt" else "c:/"
