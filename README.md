@@ -22,9 +22,9 @@ To install Cosmos, follow these simple steps:
 
 ```bash
 su -l
-apt update; apt -y upgrade; apt install -y git python3 python3-pip sudo curl
+apt update && apt -y upgrade && apt install -y git python3 python3-pip sudo curl
 nano /etc/environment  # Configure your environment variables here
-curl "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py" | sudo -E python3
+curl -sSf "https://raw.githubusercontent.com/jameswdelancey/cosmos/main/cosmos/main.py" | sudo -E python3 -
 ```
 
 ## Discussion
